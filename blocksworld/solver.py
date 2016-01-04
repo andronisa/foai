@@ -46,7 +46,7 @@ class Solver:
 
     def reset_puzzle(self, method):
         self.total_iters = 0
-        self.puzzle_state = BlocksworldPuzzle(setup.starting_tiles())
+        self.puzzle_state = BlocksworldPuzzle(setup.generate_puzzle())
         self.visited = set()
 
         if method == 'bfs':

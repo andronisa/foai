@@ -120,11 +120,6 @@ class BlocksworldPuzzle:
             children.append(self.move_agent(valid_move))
         return children
 
-    # create big hash of all the tiles of the puzzle, useful for comparing
-    def puzzle_hash(self):
-        global attributes
-        return attributes[hashlib.md5(self.tiles.tostring()).digest()]
-
     # Manhattan distance for tile.
     def manhattan_to_goal(self, tile):
         tile_coords = self.get_tile(tile)
@@ -138,3 +133,8 @@ class BlocksworldPuzzle:
         for tile in tiles:
             distance_sum += self.manhattan_to_goal(tile)
         return distance_sum
+
+    # create big hash of all the tiles of the puzzle, useful for comparing
+    def puzzle_hash(self):
+        global attributes
+        return attributes[hashlib.md5(self.tiles.tostring()).digest()]
