@@ -1,219 +1,149 @@
-#!/usr/bin/env python
-'''Tic tac toe in python, Minimax with alpha-beta pruning.'''
-import sys
+# Play tic-tac-toe. The first player will be always X.
+# Each tic-tac-toe board is represented by a sequence of three values:
+# (set of squares that have an X, set of squares that have a y, board's width)
 import random
-import getopt
+import os
+import string
 
-# Board: array of 9 int, positionally numbered like this:
-# 0  1  2
-# 3  4  5
-# 6  7  8
 
-# Well-known board positions
-WINNING_TRIADS = ((0, 1, 2), (3, 4, 5), (6, 7, 8), (0, 3, 6), (1, 4, 7),
-    (2, 5, 8), (0, 4, 8), (2, 4, 6))
-PRINTING_TRIADS = ((0, 1, 2), (3, 4, 5), (6, 7, 8))
-# The order in which slots get checked for absence of a player's token:
-SLOTS = (0, 1, 2, 3, 4, 5, 6, 7, 8)
+def TicTacToe(X, O, width=3):
+    """Play a tic-tac-toe game between the two given functions. After each
+    turn, yield the new board.
+    Each function should get a tic-tac-toe board and a char - 'X' or 'O',
+    that represents the current turn, and return the number of
+    square where it wants to put a sign.
+    width is the board's width and length - it's 3 as default.
 
-# Internal-use values.  Chosen so that the "winner" of a finished
-# game has an appropriate value, as X minimizes and O maximizes
-# the board's value (function board_valuation() defines "value")
-# Internally, the computer always plays Os, even though the markers[]
-# array can change based on -r command line flag.
-X_token = -1
-Open_token = 0
-O_token = 1
+    X, O -- functions
+    width -- natural number
+    """
+    board = (set(), set(), width)
+    turn = 'X'
+    while result(board) == False:
+        if turn == 'X':
+            board[0].add(X(board, turn))
+        else:
+            board[1].add(O(board, turn))
+        yield board
+        turn = list({'X', 'O'} - set([turn]))[0]
 
-# Strings for output: player's markers, phrase for end-of-game
-MARKERS = ['_', 'O', 'X']
-END_PHRASE = ('draw', 'win', 'loss')
 
-HUMAN = 1
-COMPUTER = 0
+def displayTicTacToe(X, O, width=3):
+    """Play a tic-tac-toe game (see TicTacToe's docstring for explanation) and
+    display the new board to the user when a player plays, and the result of
+    the game after its end.
 
-def board_valuation(board, player, next_player, alpha, beta):
-    '''Dynamic and static evaluation of board position.'''
-    # Static evaluation - value for next_player
-    wnnr = winner(board)
-    if wnnr != Open_token:
-        # Not a draw or a move left: someone won
-        return wnnr
-    elif not legal_move_left(board):
-        # Draw - no moves left
-        return 0 # Cat
-    # If flow-of-control gets here, no winner yet, not a draw.
-    # Check all legal moves for "player"
-    for move in SLOTS:
-        if board[move] == Open_token:
-            board[move] = player
-            val = board_valuation(board, next_player, player, alpha, beta)
-            board[move] = Open_token
-            if player == O_token:  # Maximizing player
-                if val > alpha:
-                    alpha = val
-                if alpha >= beta:
-                    return beta
-            else:  # X_token player, minimizing
-                if val < beta:
-                    beta = val
-                if beta <= alpha:
-                    return alpha
-    if player == O_token:
-        retval = alpha
+    X, O - functions
+    width - natural number"""
+    for board in TicTacToe(X, O, width):
+        os.system('cls' if os.name == 'nt' else 'clear')  # clearscreen
+        print str_board(board)
+    winner = result(board)
+    if winner in {'X', 'O'}:
+        print winner + ' won!'
+    elif winner == None:
+        print 'Tie!'
     else:
-        retval = beta
-    return retval
+        raise ValueError("The game didn't end")
 
-def print_board(board):
-    '''Print the board in human-readable format.
-       Called with current board (array of 9 ints).
-    '''
-    for row in PRINTING_TRIADS:
-        for hole in row:
-            print MARKERS[board[hole]],
-        print
 
-def legal_move_left(board):
-    ''' Returns True if a legal move remains, False if not. '''
-    for slot in SLOTS:
-        if board[slot] == Open_token:
-            return True
+def result(board):
+    """Return 'X' if X won in the given board, 'O' if O won, None if the game
+    ended with a tie, False if the game didn't end yet, and raise an exception
+    if it looks like X and O won both (the board cannot be reached using a
+    legal game)."""
+    x_squares, o_squares, width = board
+    rows = [{width * row + col + 1 for col in range(width)} for row in range(width)]
+    cols = [{width * row + col + 1 for row in range(width)} for col in range(width)]
+    diagonals = [{width * i + i + 1 for i in range(width)},
+                 {width * i + width - i for i in range(width)}]
+    lines = rows + cols + diagonals
+
+    x_won = any(line.issubset(x_squares) for line in lines)
+    o_won = any(line.issubset(o_squares) for line in lines)
+    if x_won:
+        if o_won:
+            raise ValueError("Illegal board")
+        return 'X'
+    if o_won:
+        return 'O'
+    if x_squares | o_squares == set(range(1, width ** 2 + 1)):
+        # Nobody won, but the board is full
+        return None  # Tie
     return False
 
-def winner(board):
-    ''' Returns -1 if X wins, 1 if O wins, 0 for a cat game,
-        0 for an unfinished game.
-        Returns the first "win" it finds, so check after each move.
-        Note that clever choices of X_token, O_token, Open_token
-        make this work better.
-    '''
-    for triad in WINNING_TRIADS:
-        triad_sum = board[triad[0]] + board[triad[1]] + board[triad[2]]
-        if triad_sum == 3 or triad_sum == -3:
-            return board[triad[0]]  # Take advantage of "_token" values
-    return 0
 
-def determine_move(board):
-    ''' Determine Os next move. Check that a legal move remains before calling.
-        Randomly picks a single move from any group of moves with the same value.
-    '''
-    best_val = -2  # 1 less than min of O_token, X_token
-    my_moves = []
-    for move in SLOTS:
-        if board[move] == Open_token:
-            board[move] = O_token
-            val = board_valuation(board, X_token, O_token, -2, 2)
-            board[move] = Open_token
-            print "My move", move, "causes a", END_PHRASE[val]
-            if val > best_val:
-                best_val = val
-                my_moves = [move]
-            if val == best_val:
-                my_moves.append(move)
-    return random.choice(my_moves)
+def str_board(board):
+    """Return the board in a string representation, to print it."""
+    return_str = ''
+    x_squares, o_squares, width = board
+    for row in range(width):
+        for col in range(width):
+            square = width * row + col + 1
+            return_str += 'X' if square in x_squares else 'O' if square in \
+                                                                 o_squares else ' '
+            if col != width - 1: return_str += ' | '
+        if row != width - 1: return_str += '\n' + '--+-' * (width - 1) + '-\n'
+    return return_str
 
-def recv_human_move(board):
-    ''' Encapsulate human's input reception and validation.
-        Call with current board configuration. Returns
-        an int of value 0..8, the Human's move.
-    '''
-    looping = True
-    while looping:
+
+def human_player(board, turn):
+    """Display the board to the user and ask him where does he want to put a
+    sign. Return the square."""
+    x_squares, o_squares, width = board
+    os.system('cls' if os.name == 'nt' else 'clear')  # clear screen
+    print str_board(board)
+    while True:
         try:
-            inp = input("Your move: ")
-            yrmv = int(inp)
-            if 0 <= yrmv <= 8:
-                if board[yrmv] == Open_token:
-                    looping = False
-                else:
-                    print "Spot already filled."
-            else:
-                print "Bad move, no donut."
+            square = int(raw_input('Where do you want to add ' + turn + '? '))
+            assert 0 < square <= width ** 2 and \
+                   square not in x_squares | o_squares
+            return square  # this will happen if there were no exceptions
+        except:
+            print ('You should write an integer between 1 and ' + str(width ** 2) +
+                   ', that represents a blank square.')
 
-        except EOFError:
-            print
-            sys.exit(0)
-        except NameError:
-            print "Not 0-9, try again."
-        except SyntaxError:
-            print "Not 0-9, try again."
 
-        if looping:
-            print_board(board)
+def minimax_player(board, turn):
+    """Return a square where it's worthwhile to play according to the minimax
+    algorithm."""
+    return minimax_best_square(board, turn)[0]
 
-    return yrmv
 
-def usage(progname):
-    '''Call with name of program, to explain its usage.'''
-    print progname + ": Tic Tac Toe in python"
-    print "Usage:", progname, "[-h] [-c] [-r] [-x] [-X]"
-    print "Flags:"
-    print "-x, -X:   print this usage message, then exit."
-    print "-h:  human goes first (default)"
-    print "-c:  computer goes first"
-    print "-r:  computer is X, human is O"
-    print "The computer O and the human plays X by default."
+def minimax_score_board(board, turn):
+    """Return 1, 0 or -1 according to the minimax algorithm -- 1 if the player
+    that has the given turn has a winning strategy, 0 if he doesn't have a
+    winning strategy but he has a tie strategy, and -1 if he will lose anyway
+    (assuming his opponent is playing a perfect game)."""
+    if result(board) == turn:
+        return 1
+    if result(board) == None:
+        return 0
+    if result(board) != False:
+        return -1
+    return minimax_best_square(board, turn)[1]
 
-def main():
-    '''Call without arguments from __main__ context.'''
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "chrxX",
-            ["human", "computer", "help"])
-    except getopt.GetoptError:
-        # print help information and exit:
-        usage(sys.argv[0])
-        sys.exit(2)
 
-    next_move = HUMAN # Human goes first by default
+def minimax_best_square(board, turn):
+    """Choose a square where it's worthwhile to play in the given board and
+    turn, and return a tuple of the square's number and it's score according
+    to the minimax algorithm."""
+    x_squares, o_squares, width = board
+    max_score = -2
+    opponent = list({'X', 'O'} - set([turn]))[0]
+    squares = list(set(range(1, width ** 2 + 1)) - (x_squares | o_squares))
+    random.shuffle(squares)
+    for square in squares:
+        # Iterate over the blank squares, to get the best square to play
+        new_board = (x_squares | set([square] if turn == 'X' else []),) + \
+                    (o_squares | set([square] if turn == 'O' else []), width)
+        score = -minimax_score_board(new_board, opponent)
+        if score == 1: return (square, 1)
+        if score > max_score:
+            max_score, max_square = score, square
+    return (max_square, max_score)
 
-    for opt, arg in opts:
-        if opt == "-h":
-            next_move = HUMAN
-        if opt == "-c":
-            next_move = COMPUTER
-        if opt == "-r":
-            MARKERS[-1] = 'O'
-            MARKERS[1] = 'X'
-        if opt in ("-x", "-X", "--help"):
-            usage(sys.argv[0])
-            sys.exit(1)
 
-    # Initial state of board: all open spots.
-    board = [Open_token, Open_token, Open_token, Open_token, Open_token,
-        Open_token, Open_token, Open_token, Open_token]
-
-    # State machine to decide who goes next, and when the game ends.
-    # This allows letting computer or human go first.
-    while legal_move_left(board) and winner(board) == Open_token:
-        print
-        print_board(board)
-
-        if next_move == HUMAN and legal_move_left(board):
-            humanmv = recv_human_move(board)
-            board[humanmv] = X_token
-            next_move = COMPUTER
-
-        if next_move == COMPUTER and legal_move_left(board):
-            mymv = determine_move(board)
-            print "I choose", mymv
-            board[mymv] = O_token
-            next_move = HUMAN
-
-    print_board(board)
-    # Final board state/winner and congratulatory output.
-    try:
-        # "You won" should never appear on output: the program
-        # should always at least draw.
-        print ["Cat got the game", "I won", "You won"][winner(board)]
-    except IndexError:
-        print "Really bad error, winner is", winner(board)
-
-    sys.exit(0)
-#-------
-if __name__ == '__main__':
-    try:
-        main()
-    except KeyboardInterrupt:
-        print
-        sys.exit(1)
+if __name__ == "__main__":
+    displayTicTacToe(X=minimax_player, O=human_player, width=3)
+    raw_input()
