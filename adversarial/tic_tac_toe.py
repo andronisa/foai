@@ -1,7 +1,7 @@
-# from utils import *
+from utils import *
 
 
-class TicTacToe():
+class TicTacToe:
     """Play TicTacToe on an h x v board, with Max (first player) playing 'X'.
     A state has the player to move, a cached utility, a list of moves in
     the form of a list of (x, y) positions, and a board, in the form of

@@ -32,7 +32,6 @@ def minimax_decision(state, game):
     return action
 
 
-
 def alphabeta_full_search(state, game):
     """Search game to determine best action; use alpha-beta pruning.
     As in [Fig. 6.7], this version searches all the way to the leaves."""
@@ -66,6 +65,7 @@ def alphabeta_full_search(state, game):
                            lambda ((a, s)): min_value(s, -infinity, infinity))
     return action
 
+
 def alphabeta_search(state, game, d=4, cutoff_test=None, eval_fn=None):
     """Search game to determine best action; use alpha-beta pruning.
     This version cuts off search and uses an evaluation function."""
@@ -77,7 +77,7 @@ def alphabeta_search(state, game, d=4, cutoff_test=None, eval_fn=None):
             return eval_fn(state)
         v = -infinity
         for (a, s) in game.successors(state):
-            v = max(v, min_value(s, alpha, beta, depth+1))
+            v = max(v, min_value(s, alpha, beta, depth + 1))
             if v >= beta:
                 return v
             alpha = max(alpha, v)
@@ -88,7 +88,7 @@ def alphabeta_search(state, game, d=4, cutoff_test=None, eval_fn=None):
             return eval_fn(state)
         v = infinity
         for (a, s) in game.successors(state):
-            v = min(v, max_value(s, alpha, beta, depth+1))
+            v = min(v, max_value(s, alpha, beta, depth + 1))
             if v <= alpha:
                 return v
             beta = min(beta, v)
@@ -97,32 +97,8 @@ def alphabeta_search(state, game, d=4, cutoff_test=None, eval_fn=None):
     # Body of alphabeta_search starts here:
     # The default test cuts off at depth d or at a terminal state
     cutoff_test = (cutoff_test or
-                   (lambda state,depth: depth>d or game.terminal_test(state)))
+                   (lambda state, depth: depth > d or game.terminal_test(state)))
     eval_fn = eval_fn or (lambda state: game.utility(state, player))
     action, state = argmax(game.successors(state),
                            lambda ((a, s)): min_value(s, -infinity, infinity, 0))
     return action
-
-# Players for Games
-
-def query_player(game, state):
-    "Make a move by querying standard input."
-    game.display(state)
-    return num_or_str(raw_input('Your move? '))
-
-def random_player(game, state):
-    "A player that chooses a legal move at random."
-    return random.choice(game.legal_moves())
-
-def alphabeta_player(game, state):
-    return alphabeta_search(state, game)
-
-def play_game(game, *players):
-    "Play an n-person, move-alternating game."
-    state = game.initial
-    while True:
-        for player in players:
-            move = player(game, state)
-            state = game.make_move(move, state)
-            if game.terminal_test(state):
-                return game.utility(state, players[0])
