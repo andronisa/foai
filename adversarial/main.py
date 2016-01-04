@@ -100,9 +100,11 @@ class MinMaxClass:
 
         while True:
             try:
-                square = int(raw_input('Total Iterations = ' + str(self.counter) + '- Where do you want to add ' + turn + '? '))
+                square = int(
+                    raw_input('Total Iterations = ' + str(self.counter) + ' - Where do you want to add ' + turn + '? '))
                 assert 0 < square <= width ** 2 and \
                        square not in x_squares | o_squares
+                self.counter = 0
                 return square  # this will happen if there were no exceptions
             except:
                 print ('You should write an integer between 1 and ' + str(width ** 2) +
