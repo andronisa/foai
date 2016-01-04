@@ -1,20 +1,8 @@
 import numpy as np
 import scipy.spatial as spatial
-import collections
 import hashlib
 
 from config import setup
-
-_key = 0
-
-
-def _get_new_key():
-    global _key
-    _key += 1
-    return _key
-
-
-attributes = collections.defaultdict(_get_new_key)
 
 
 class Coords:
@@ -33,56 +21,79 @@ class Coords:
     def y_axis_valid(self):
         return 0 <= self.y_axis < self.height
 
+    @staticmethod
+    def coordinates():
+        return {
+            'north': (0, 1),
+            'east': (1, 0),
+            'south': (0, -1),
+            'west': (-1, 0)
+        }
+
+    @staticmethod
+    def coordinates_by_value():
+        return {v: k for k, v in Coords.coordinates().items()}
+
 
 class BlocksworldPuzzle:
-    def __init__(self, tiles, moves=0):
-        self.tiles = np.array(tiles, dtype=np.int)
+    def __init__(self, blocks, moves=0, directions=list()):
+        self.blocks = np.array(blocks, dtype=np.int)
         self.moves = moves
+        self.directions = directions
         self.height = None
         self.width = None
         self.agent = 0
+        self.goal_state = setup.goal_state()
 
-    def get_tile(self, tile):
-        tiles_matched = np.where(self.tiles == tile)
+    def get_block(self, block):
+        blocks_matched = np.where(self.blocks == block)
         coords = Coords(
-                tiles_matched[0].item(0),
-                tiles_matched[1].item(0),
+                blocks_matched[0].item(0),
+                blocks_matched[1].item(0),
                 self.get_height(),
                 self.get_height()
         )
         return coords
 
     def find_agent(self):
-        return self.get_tile(self.agent)
+        return self.get_block(self.agent)
 
     def is_goal_state(self):
-        return np.count_nonzero(self.tiles != setup.goal_state()) == 0
+        return np.count_nonzero(self.blocks != self.goal_state) == 0
 
     def get_width(self):
         if not self.width:
-            self.width = self.tiles.shape[1]
+            self.width = self.blocks.shape[1]
         return self.width
 
     def get_height(self):
         if not self.height:
-            self.height = self.tiles.shape[0]
+            self.height = self.blocks.shape[0]
         return self.height
 
     # Returns a new BlocksworldPuzzle with the agent on the new position.
     def move_agent(self, target_coords):
         previous_agent_position = self.find_agent()
+        agent_x = previous_agent_position.x_axis
+        agent_y = previous_agent_position.y_axis
 
-        new_tiles = np.copy(self.tiles)
+        new_puzzle = np.copy(self.blocks)
 
-        target_tile = self.tiles[target_coords.x_axis][target_coords.y_axis]
+        target_block = self.blocks[target_coords.x_axis][target_coords.y_axis]
+        target_block_x = target_coords.x_axis
+        target_block_y = target_coords.y_axis
 
-        # Replace agent with target.
-        new_tiles[previous_agent_position.x_axis][previous_agent_position.y_axis] = target_tile
+        movement = (agent_x - target_block_x, agent_y - target_block_y)
+        direction = Coords.coordinates_by_value()[movement]
+        self.directions.append(direction)
 
-        # Replace target with agent.
-        new_tiles[target_coords.x_axis][target_coords.y_axis] = self.agent
+        # Replace agent with target block.
+        new_puzzle[agent_x][agent_y] = target_block
 
-        return BlocksworldPuzzle(new_tiles, self.moves + 1)
+        # Replace target block with agent.
+        new_puzzle[target_block_x][target_block_y] = self.agent
+
+        return BlocksworldPuzzle(new_puzzle, self.moves + 1, self.directions)
 
     def neighbor_states(self, agent_coord):
         def move_towards(direction):
@@ -96,12 +107,9 @@ class BlocksworldPuzzle:
                     self.get_width()
             )
 
-        north = (0, 1)
-        east = (1, 0)
-        south = (0, -1)
-        west = (-1, 0)
+        coordinates = Coords.coordinates()
 
-        possible_directions = [north, east, south, west]
+        possible_directions = [coordinates['north'], coordinates['east'], coordinates['south'], coordinates['west']]
         direction_coords = set()
 
         for possible_dir in possible_directions:
@@ -120,21 +128,31 @@ class BlocksworldPuzzle:
             children.append(self.move_agent(valid_move))
         return children
 
-    # Manhattan distance for tile.
-    def manhattan_to_goal(self, tile):
-        tile_coords = self.get_tile(tile)
-        return spatial.distance.cityblock(setup.get_goal_coordinates(tile), (tile_coords.x_axis, tile_coords.y_axis))
+    # Manhattan distance for block.
+    def manhattan_to_goal(self, block):
+        block_coords = self.get_block(block)
+        return spatial.distance.cityblock(self.get_goal_coordinates(block), (block_coords.x_axis, block_coords.y_axis))
 
     # Manhattan distances total.
     def total_manhattan_distance(self):
-        tiles = np.nditer(self.tiles)
+        blocks = np.nditer(self.blocks)
         distance_sum = 0
 
-        for tile in tiles:
-            distance_sum += self.manhattan_to_goal(tile)
+        for block in blocks:
+            distance_sum += self.manhattan_to_goal(block)
         return distance_sum
 
-    # create big hash of all the tiles of the puzzle, useful for comparing
+    # create big hash of all the blocks of the puzzle, useful for comparing
     def puzzle_hash(self):
-        global attributes
-        return attributes[hashlib.md5(self.tiles.tostring()).digest()]
+        sha_one_blocks = hashlib.sha1(self.blocks)
+        return sha_one_blocks.hexdigest()
+
+    # Goal coordinates for a single block.
+    def get_goal_coordinates(self, block):
+        goal_coordinates = np.where(self.goal_state == block)
+        matched = np.array([
+            goal_coordinates[0].item(0),
+            goal_coordinates[1].item(0)
+        ])
+
+        return matched

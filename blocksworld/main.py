@@ -3,11 +3,21 @@ from solver import Solver
 
 
 def print_search_result(result):
+    result_moves = result.moves
+
+    moves = ""
+    if result_moves is []:
+        moves = "Too many moves"
+    for move in result_moves:
+        moves += ", " + move
+
     outputs = [
         ("     Result", "Successful" if result.is_successful else "Unsuccesful"),
         ("     Total time", result.total_time),
-        ("     Total moves number to goal", "{} moves".format(result.total_moves)),
-        ("     Total iterations", result.total_iters)
+        ("     Total moves number to goal", "{} moves".format(result.moves_count)),
+        ("     Total moves", moves),
+        ("     Total iterations", result.total_iters),
+        ("     Queue size at the end", result.queue_size)
     ]
 
     print("")

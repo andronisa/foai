@@ -12,6 +12,7 @@ class Solver:
         self.total_iters = 0
         self.queue = None
         self.visited = None
+        self.visited_directions = None
         self.puzzle_state = None
         self.heuristic = None
         self.method = None
@@ -29,11 +30,23 @@ class Solver:
         search_outcome = self.methods[method]()
         end = dt.datetime.now()
 
+        if self.puzzle_state:
+            moves = self.puzzle_state.moves
+            print("")
+            print(len(self.puzzle_state.directions))
+
+            directions = self.puzzle_state.directions if len(self.puzzle_state.directions) < 50 else []
+            print(directions)
+        else:
+            moves = None
+            directions = None
+
         result = SearchResult(
                 search_outcome,
                 self.total_iters,
                 len(self.queue),
-                self.puzzle_state.moves if self.puzzle_state else None,
+                moves,
+                directions,
                 end - start
         )
 
@@ -48,6 +61,7 @@ class Solver:
         self.total_iters = 0
         self.puzzle_state = BlocksworldPuzzle(setup.generate_puzzle())
         self.visited = set()
+        self.visited_directions = {}
 
         if method == 'bfs':
             self.queue = deque([self.puzzle_state])
@@ -60,41 +74,86 @@ class Solver:
         elif method == 'a_star':
             self.queue = PriorityQueue()
             self.queue.put((0, self.puzzle_state))
-            self.heuristic = lambda b: b.total_manhattan_distance()
+            self.heuristic = lambda heur: heur.total_manhattan_distance()
 
     # Breadth-first search.
     # FIFO queue -- Double Ended Queue(DEQUEUE)
-    # POP - left | ADD - right.
+    # GET - left | ADD - right.
     def bfs(self):
         while len(self.queue) > 0:
             self.total_iters += 1
             self.log_state()
+            self.visited_directions = {}
 
-            self.puzzle_state = self.queue.popleft()  # Get shallowest state.
-            self.visited.add(self.puzzle_state.puzzle_hash())  # Mark current state as visited.
+            # Get nearest(more shallow state.
+            self.puzzle_state = self.queue.popleft()
+            # Add current state to visited ones
+            self.visited.add(self.puzzle_state.puzzle_hash())
+            self.visited_directions[self.puzzle_state.puzzle_hash()] = self.puzzle_state.directions
 
             if self.puzzle_state.is_goal_state():
                 return True
 
-            # Add not visited valid moves to the right of the queue.
-            self.queue.extend(
-                    filter(
-                            lambda state: state.puzzle_hash() not in self.visited,
-                            self.puzzle_state.get_children()))
-        # Loop did not find result: search space exhaustion, no goal found.
+            def is_visited(state, visited):
+                return state.puzzle_hash() in visited
+
+            # Queue extend with not visited
+            valid_children = []
+            for child_state in self.puzzle_state.get_children():
+                if not is_visited(child_state, self.visited):
+                    valid_children.append(child_state)
+            self.queue.extend(valid_children)
+
+        # No result.
         return False
 
-    def dfs(self, limit=None):
+    # Depth First Search.
+    # Not optimal solution.
+    # It can go on infinitely.
+    # LIFO Queue --> python list()
+    def dfs(self):
+        self.queue = [self.puzzle_state]
+        # Visited : {state_hash:state_depth}
+        self.visited = {}
+
+        while len(self.queue) > 0:
+            # Stopping in 2000000 iterations in case of infinite loop
+            if self.total_iters > 2000000:
+                return False
+            self.total_iters += 1
+            self.log_state()
+
+            # Get the state that is deepest
+            self.puzzle_state = self.queue.pop()  # Get deepest state.
+            # Add current state in visited.
+            self.visited[self.puzzle_state.puzzle_hash()] = self.puzzle_state.moves
+            self.visited_directions[self.puzzle_state.puzzle_hash()] = self.puzzle_state.directions
+
+            if self.puzzle_state.is_goal_state():
+                return True
+
+            def is_visited(child, visited):
+                return child.puzzle_hash() in visited
+
+            valid_children = []
+            for child_state in self.puzzle_state.get_children():
+                if not is_visited(child_state, self.visited) \
+                        or self.visited[child_state.puzzle_hash()] > child_state.moves:
+                    valid_children.append(child_state)
+            self.queue.extend(valid_children)
+
+        # No result
+        return False
+
+    # Iterative deepening depth-first search.
+    # The solution is more optimal than DFS.
+    # It is faster than BFS
+    # It can go on infinitely, like DFS.
+    # LIFO Queue --> python list()
+    def id_dfs(self):
         start_state = self.puzzle_state
-        # Depth goes from 0 to infinity. We start at 0 to ensure optimality: we must check
-        # that the initial state is not a goal state before generating its children.
-        if limit:
-            depth_limit = limit
-        else:
-            depth_limit = itertools.count()
-        for depth in depth_limit:
-            # Visited is a dictionary with state hash as key and state depth as value. We need
-            # to track depth as in DFS we may encounter visited states later at shallower depth.
+
+        for depth in itertools.count():
             self.queue = [start_state]
             self.visited = {}
 
@@ -102,81 +161,76 @@ class Solver:
                 self.total_iters += 1
                 self.log_state()
 
-                self.puzzle_state = self.queue.pop()  # Get deepest state.
-
-                current_state_hashcode = self.puzzle_state.puzzle_hash()
-                self.visited[current_state_hashcode] = self.puzzle_state.moves  # Mark current state as visited.
+                # Get the state that is the deepest.
+                self.puzzle_state = self.queue.pop()
+                # Add current state to visited ones.
+                self.visited[self.puzzle_state.puzzle_hash()] = self.puzzle_state.moves
+                self.visited_directions[self.puzzle_state.puzzle_hash()] = self.puzzle_state.directions
 
                 if self.puzzle_state.is_goal_state():
                     return True
 
-                if self.puzzle_state.moves < depth:
-                    self.queue.extend(
-                            filter(
-                                    lambda child:
-                                    child.puzzle_hash() not in self.visited or
-                                    self.visited[current_state_hashcode] > child.moves,
-                                    self.puzzle_state.get_children()))
+                def is_visited(child, visited):
+                    return child.puzzle_hash() in visited
 
-        # Loop did not return result -> search space exhaustion, no goal found.
+                if self.puzzle_state.moves < depth:
+                    valid_children = []
+                    for child_state in self.puzzle_state.get_children():
+                        if not is_visited(child_state, self.visited) \
+                                or self.visited[child_state.puzzle_hash()] > child_state.moves:
+                            valid_children.append(child_state)
+                    self.queue.extend(valid_children)
+
         return False
 
-    # 1b) Iterative deepening depth-first search. Should find the optimal solution like
-    # BFS but use less memory. On the other hand the time cost is larger because self.puzzle_states
-    # above the goal depth are recomputed over and over again. No depth limit is set so
-    # this implementation will not terminate if the search space is infinite. Fringe is a
-    # LIFO queue. Here we use an ordinary python list with O(1) append and pop (both are
-    # done from the right).
-
-    def id_dfs(self, ):
-        for limit in itertools.count():
-            result = self.dfs(limit)
-            if result is True:
-                return result
-
-    # A* search. Should find the result much faster than BFS and IDDFS.
-    # Fringe is a priority queue ordered by a cost estimate function.
-    # This is a general implementation that is parameterized to receive any heuristic.
-    # States sharing same priority are in no special order -> traversal order
-    # is not fully deterministic.
+    # A* search.
+    # Most optimal solution time-wise.
+    # QUEUE: PRIORITY QUEUE(when _get() is used, it gets the item with the minimum value first)
+    # ORDER: Heuristic(Total Manhattan Distance + number of state moves)
     def a_star(self):
-        # Cost estimate = accumulated cost so far + heuristic estimate of future cost.
-        def estimate_cost(puzzle_state):
-            return puzzle_state.moves + self.heuristic(self.puzzle_state)
+        # Total_moves = total so far + total to be made
+        def total_moves(puzzle_state, heuristic):
+            return puzzle_state.moves + heuristic(self.puzzle_state)
 
-        def queue_entry(puzzle_state):
-            return estimate_cost(puzzle_state), puzzle_state
+        def state_cost_tuple(puzzle_state, heuristic):
+            return total_moves(puzzle_state, heuristic), puzzle_state
 
-        def unvisited_children(puzzle_state, visited):
-            return filter(
-                    lambda child: child.puzzle_hash() not in visited,
-                    puzzle_state.get_children())
+        def valid_children(puzzle_state, visited):
+            children = []
+            for child_state in puzzle_state.get_children():
+                if child_state.puzzle_hash() not in visited:
+                    children.append(child_state)
+            return children
 
         while not self.queue.empty():
             self.total_iters += 1
             self.log_state()
 
-            self.puzzle_state = self.queue.get()[1]  # get self.puzzle_state with highest priority
-            self.visited.add(self.puzzle_state.puzzle_hash())  # Mark current state as visited
+            # Get state with lowest value(moves left)
+            self.puzzle_state = self.queue.get()[1]
+            # Add state to visited
+            self.visited.add(self.puzzle_state.puzzle_hash())
+            self.visited_directions[self.puzzle_state.puzzle_hash()] = self.puzzle_state.directions
 
             if self.puzzle_state.is_goal_state():
                 self.queue = self.queue.queue
                 return True
 
-            for entry in map(queue_entry, unvisited_children(self.puzzle_state, self.visited)):
-                self.queue.put(entry)
+            for valid_child in valid_children(self.puzzle_state, self.visited):
+                self.queue.put(state_cost_tuple(valid_child, self.heuristic))
 
-        # Loop did not return result -> search space exhaustion, no goal found.
+        # No result
         self.queue = self.queue.queue
         return False
 
 
 class SearchResult:
-    def __init__(self, is_succesful, total_iters, queue_size, total_moves, time_elapsed):
+    def __init__(self, is_succesful, total_iters, queue_size, moves_count, total_moves, time_elapsed):
         self.__is_succesful = is_succesful
         self.__total_iters = total_iters
         self.__queue_size = queue_size
-        self.__total_moves = total_moves
+        self.__moves_count = moves_count
+        self.__moves = total_moves
         self.__time_elapsed = time_elapsed
 
     @property
@@ -192,8 +246,12 @@ class SearchResult:
         return self.__queue_size
 
     @property
-    def total_moves(self):
-        return self.__total_moves
+    def moves_count(self):
+        return self.__moves_count
+
+    @property
+    def moves(self):
+        return self.__moves
 
     @property
     def total_time(self):
