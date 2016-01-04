@@ -3,7 +3,6 @@
 # (set of squares that have an X, set of squares that have a y, board's width)
 import random
 import os
-import string
 
 
 class MinMaxClass:
@@ -24,7 +23,7 @@ class MinMaxClass:
 
         board = (set(), set(), width)
         turn = 'X'
-        while self.result(board) == False:
+        while self.result(board) is False:
             if turn == 'X':
                 board[0].add(X(board, turn))
             else:
@@ -101,7 +100,7 @@ class MinMaxClass:
 
         while True:
             try:
-                square = int(raw_input('Where do you want to add ' + turn + '? '))
+                square = int(raw_input('Total Iterations = ' + str(self.counter) + '- Where do you want to add ' + turn + '? '))
                 assert 0 < square <= width ** 2 and \
                        square not in x_squares | o_squares
                 return square  # this will happen if there were no exceptions
@@ -141,7 +140,7 @@ class MinMaxClass:
 
         for square in squares:
             self.counter += 1
-            print(self.counter)
+
             # Iterate over the blank squares, to get the best square to play
             new_board = (x_squares | set([square] if turn == 'X' else []),) + \
                         (o_squares | set([square] if turn == 'O' else []), width)
@@ -152,7 +151,6 @@ class MinMaxClass:
 
             if score > max_score:
                 max_score, max_square = score, square
-
         return max_square, max_score
 
 
