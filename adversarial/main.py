@@ -1,139 +1,162 @@
-#!/usr/bin/env python
+# coding=UTF8
+from Tkinter import Tk, Button
+from tkFont import Font
+from copy import deepcopy
 
-import random
 
+class Board:
+    def __init__(self, other=None):
+        self.player = 'X'
+        self.opponent = 'O'
+        self.empty = '.'
+        self.size = 3
+        self.fields = {}
+        for y in range(self.size):
+            for x in range(self.size):
+                self.fields[x, y] = self.empty
+        # copy constructor
+        if other:
+            self.__dict__ = deepcopy(other.__dict__)
 
-class Tic(object):
-    winning_combos = (
-        [0, 1, 2], [3, 4, 5], [6, 7, 8],
-        [0, 3, 6], [1, 4, 7], [2, 5, 8],
-        [0, 4, 8], [2, 4, 6])
+    def move(self, x, y):
+        board = Board(self)
+        board.fields[x, y] = board.player
+        (board.player, board.opponent) = (board.opponent, board.player)
+        return board
 
-    winners = ('X-win', 'Draw', 'O-win')
-
-    def __init__(self, squares=[]):
-        if len(squares) == 0:
-            self.squares = [None for i in range(9)]
+    def __minimax(self, player):
+        if self.won():
+            if player:
+                return (-1, None)
+            else:
+                return (+1, None)
+        elif self.tied():
+            return (0, None)
+        elif player:
+            best = (-2, None)
+            for x, y in self.fields:
+                if self.fields[x, y] == self.empty:
+                    value = self.move(x, y).__minimax(not player)[0]
+                    if value > best[0]:
+                        best = (value, (x, y))
+            return best
         else:
-            self.squares = squares
+            best = (+2, None)
+            for x, y in self.fields:
+                if self.fields[x, y] == self.empty:
+                    value = self.move(x, y).__minimax(not player)[0]
+                    if value < best[0]:
+                        best = (value, (x, y))
+            return best
 
-    def show(self):
-        for element in [self.squares[i:i + 3] for i in range(0, len(self.squares), 3)]:
-            print element
-
-    def available_moves(self):
-        """what spots are left empty?"""
-        return [k for k, v in enumerate(self.squares) if v is None]
-
-    def available_combos(self, player):
-        """what combos are available?"""
-        return self.available_moves() + self.get_squares(player)
-
-    def complete(self):
-        """is the game over?"""
-        if None not in [v for v in self.squares]:
-            return True
-        if self.winner() != None:
-            return True
-        return False
-
-    def X_won(self):
-        return self.winner() == 'X'
-
-    def O_won(self):
-        return self.winner() == 'O'
+    def best(self):
+        return self.__minimax(True)[1]
 
     def tied(self):
-        return self.complete() == True and self.winner() is None
+        for (x, y) in self.fields:
+            if self.fields[x, y] == self.empty:
+                return False
+        return True
 
-    def winner(self):
-        for player in ('X', 'O'):
-            positions = self.get_squares(player)
-            for combo in self.winning_combos:
-                win = True
-                for pos in combo:
-                    if pos not in positions:
-                        win = False
-                if win:
-                    return player
+    def won(self):
+        # horizontal
+        for y in range(self.size):
+            winning = []
+            for x in range(self.size):
+                if self.fields[x, y] == self.opponent:
+                    winning.append((x, y))
+            if len(winning) == self.size:
+                return winning
+        # vertical
+        for x in range(self.size):
+            winning = []
+            for y in range(self.size):
+                if self.fields[x, y] == self.opponent:
+                    winning.append((x, y))
+            if len(winning) == self.size:
+                return winning
+        # diagonal
+        winning = []
+        for y in range(self.size):
+            x = y
+            if self.fields[x, y] == self.opponent:
+                winning.append((x, y))
+        if len(winning) == self.size:
+            return winning
+        # other diagonal
+        winning = []
+        for y in range(self.size):
+            x = self.size - 1 - y
+            if self.fields[x, y] == self.opponent:
+                winning.append((x, y))
+        if len(winning) == self.size:
+            return winning
+        # default
         return None
 
-    def get_squares(self, player):
-        """squares that belong to a player"""
-        return [k for k, v in enumerate(self.squares) if v == player]
+    def __str__(self):
+        string = ''
+        for y in range(self.size):
+            for x in range(self.size):
+                string += self.fields[x, y]
+            string += "\n"
+        return string
 
-    def make_move(self, position, player):
-        """place on square on the board"""
-        self.squares[position] = player
 
-    def alphabeta(self, node, player, alpha, beta):
-        if node.complete():
-            if node.X_won():
-                return -1
-            elif node.tied():
-                return 0
-            elif node.O_won():
-                return 1
-        for move in node.available_moves():
-            node.make_move(move, player)
-            val = self.alphabeta(node, get_enemy(player), alpha, beta)
-            node.make_move(move, None)
-            if player == 'O':
-                if val > alpha:
-                    alpha = val
-                if alpha >= beta:
-                    return beta
+class GUI:
+    def __init__(self):
+        self.app = Tk()
+        self.app.title('TicTacToe')
+        self.app.resizable(width=False, height=False)
+        self.board = Board()
+        self.font = Font(family="Helvetica", size=32)
+        self.buttons = {}
+        for x, y in self.board.fields:
+            handler = lambda x=x, y=y: self.move(x, y)
+            button = Button(self.app, command=handler, font=self.font, width=2, height=1)
+            button.grid(row=y, column=x)
+            self.buttons[x, y] = button
+        handler = lambda: self.reset()
+        button = Button(self.app, text='reset', command=handler)
+        button.grid(row=self.board.size + 1, column=0, columnspan=self.board.size, sticky="WE")
+        self.update()
+
+    def reset(self):
+        self.board = Board()
+        self.update()
+
+    def move(self, x, y):
+        self.app.config(cursor="watch")
+        self.app.update()
+        self.board = self.board.move(x, y)
+        self.update()
+        move = self.board.best()
+        if move:
+            self.board = self.board.move(*move)
+            self.update()
+        self.app.config(cursor="")
+
+    def update(self):
+        for (x, y) in self.board.fields:
+            text = self.board.fields[x, y]
+            self.buttons[x, y]['text'] = text
+            self.buttons[x, y]['disabledforeground'] = 'black'
+            if text == self.board.empty:
+                self.buttons[x, y]['state'] = 'normal'
             else:
-                if val < beta:
-                    beta = val
-                if beta <= alpha:
-                    return alpha
-        if player == 'O':
-            return alpha
-        else:
-            return beta
+                self.buttons[x, y]['state'] = 'disabled'
+        winning = self.board.won()
+        if winning:
+            for x, y in winning:
+                self.buttons[x, y]['disabledforeground'] = 'red'
+            for x, y in self.buttons:
+                self.buttons[x, y]['state'] = 'disabled'
+        for (x, y) in self.board.fields:
+            self.buttons[x, y].update()
+
+    def mainloop(self):
+        self.app.mainloop()
 
 
-def determine(board, player):
-    a = -2
-    choices = []
-    if len(board.available_moves()) == 9:
-        return 4
-    for move in board.available_moves():
-        board.make_move(move, player)
-        val = board.alphabeta(board, get_enemy(player), -2, 2)
-        board.make_move(move, None)
-        print "move:", move + 1, "causes:", board.winners[val + 1]
-        if val > a:
-            a = val
-            choices = [move]
-        elif val == a:
-            choices.append(move)
-    return random.choice(choices)
-
-
-def get_enemy(player):
-    if player == 'X':
-        return 'O'
-    return 'X'
-
-
-if __name__ == "__main__":
-    board = Tic()
-    board.show()
-
-    while not board.complete():
-        player = 'X'
-        player_move = int(raw_input("Next Move: ")) - 1
-        if not player_move in board.available_moves():
-            continue
-        board.make_move(player_move, player)
-        board.show()
-
-        if board.complete():
-            break
-        player = get_enemy(player)
-        computer_move = determine(board, player)
-        board.make_move(computer_move, player)
-        board.show()
-    print "winner is", board.winner()
+if __name__ == '__main__':
+    GUI().mainloop()
