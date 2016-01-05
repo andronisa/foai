@@ -22,6 +22,7 @@ class MinMaxClass:
         """
 
         board = (set(), set(), width)
+
         turn = 'X'
         while self.result(board) is False:
             if turn == 'X':
@@ -75,6 +76,7 @@ class MinMaxClass:
         if x_squares | o_squares == set(range(1, width ** 2 + 1)):
             # Nobody won, but the board is full
             return None  # Tie
+
         return False
 
     def str_board(self, board):
@@ -101,7 +103,9 @@ class MinMaxClass:
         while True:
             try:
                 square = int(
-                    raw_input('Total Iterations = ' + str(self.counter) + ' - Where do you want to add ' + turn + '? '))
+                        raw_input(
+                                'Total Iterations = ' + str(
+                                        self.counter) + ' - Where do you want to add ' + turn + '? '))
                 assert 0 < square <= width ** 2 and \
                        square not in x_squares | o_squares
                 self.counter = 0
@@ -137,10 +141,10 @@ class MinMaxClass:
         max_score = -2
 
         opponent = list({'X', 'O'} - set([turn]))[0]
-        squares = list(set(range(1, width ** 2 + 1)) - (x_squares | o_squares))
-        random.shuffle(squares)
+        available_squares = list(set(range(1, width ** 2 + 1)) - (x_squares | o_squares))
+        random.shuffle(available_squares)
 
-        for square in squares:
+        for square in available_squares:
             self.counter += 1
 
             # Iterate over the blank squares, to get the best square to play
@@ -155,9 +159,122 @@ class MinMaxClass:
                 max_score, max_square = score, square
         return max_square, max_score
 
+    def alphabeta_player(self, board, turn, alpha):
+        """Return a square where it's worthwhile to play according to the minimax
+        algorithm."""
+        return self.alpha_beta_best_square(board, turn)[0]
+
+    def alpha_beta_score_board(self, board, turn, alpha, beta):
+        """Return 1, 0 or -1 according to the minimax algorithm -- 1 if the player
+        that has the given turn has a winning strategy, 0 if he doesn't have a
+        winning strategy but he has a tie strategy, and -1 if he will lose anyway
+        (assuming his opponent is playing a perfect game)."""
+
+        if self.result(board) == turn:
+            return 1
+        if self.result(board) is None:
+            return 0
+        if self.result(board) is not False:
+            return -1
+
+        return self.alpha_beta_best_square(board, turn, alpha, beta)[1]
+
+    def alpha_beta_best_square(self, board, player, alpha, beta):
+        """Choose a square where it's worthwhile to play in the given board and
+        turn, and return a tuple of the square's number and it's score according
+        to the minimax algorithm."""
+        x_squares, o_squares, width = board
+        max_score = -2
+
+        opponent = list({'X', 'O'} - set([player]))[0]
+
+        available_squares = list(set(range(1, width ** 2 + 1)) - (x_squares | o_squares))
+        random.shuffle(available_squares)
+
+        for square in available_squares:
+            self.counter += 1
+
+            # Iterate over the blank squares, to get the best square to play
+            new_board = (x_squares | set([square] if player == 'X' else []),) + \
+                        (o_squares | set([square] if player == 'O' else []), width)
+            result = self.minimax_score_board(new_board, opponent)
+            print("")
+            print(result)
+            score = -result
+
+            if score == 1:
+                return score
+
+            if player == '0':
+                if score > alpha:
+                    alpha = score
+                if alpha >= beta:
+                    return beta
+            else:
+                if score < beta:
+                    beta = score
+                if beta <= alpha:
+                    return alpha
+
+    def determine(self, board, turn, alpha=-2, beta=2):
+        """Choose a square where it's worthwhile to play in the given board and
+        turn, and return a tuple of the square's number and it's score according
+        to the minimax algorithm."""
+        choices = []
+
+        x_squares, o_squares, width = board
+
+        opponent = list({'X', 'O'} - set([turn]))[0]
+        player = 'O' if opponent == 'X' else 'X'
+
+        available_squares = list(set(range(1, width ** 2 + 1)) - (x_squares | o_squares))
+
+        random.shuffle(available_squares)
+
+        for square in available_squares:
+            self.counter += 1
+
+            # Iterate over the blank squares, to get the best square to play
+            new_board = (x_squares | set([square] if turn == 'X' else []),) + \
+                        (o_squares | set([square] if turn == 'O' else []), width)
+
+            score = self.alpha_beta_best_square(new_board, opponent, alpha, beta)[1]
+
+            if score == 1:
+                return square, 1
+
+            if score > alpha:
+                choices = [(square, score)]
+            elif score == alpha:
+                choices.append((square, score))
+            return random.choice(choices)
+
+
+#
+# def alphabeta(self, board, turn, alpha, beta):
+#     for move in node.available_moves():
+#         node.make_move(move, player)
+#         val = self.alphabeta(node, get_enemy(player), alpha, beta)
+#         node.make_move(move, None)
+#
+#         if player == 'O':
+#             if val > alpha:
+#                 alpha = val
+#             if alpha >= beta:
+#                 return beta
+#         else:
+#             if val < beta:
+#                 beta = val
+#             if beta <= alpha:
+#                 return alpha
+#     if player == 'O':
+#         return alpha
+#     else:
+#         return beta
+
 
 if __name__ == "__main__":
     solver = MinMaxClass()
 
-    solver.display_tic_tac_toe(X=solver.minimax_player, O=solver.human_player, width=3)
+    solver.display_tic_tac_toe(X=solver.determine, O=solver.human_player, width=3)
     raw_input()
