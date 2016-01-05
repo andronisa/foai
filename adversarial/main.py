@@ -277,7 +277,7 @@ def ab_vs_mm():
     return result
 
 
-def plot_wins(result):
+def plot_wins(result, title):
     OX = [
         'MinMax',
         'Alpha Beta',
@@ -305,11 +305,11 @@ def plot_wins(result):
 
     plt.xlabel('Result')
     plt.ylabel('Wins Count')
-    plt.title('Tic Tac Toe - MinMax vs AlphaBeta')
+    plt.title(title)
     plt.show()
 
 
-def plot_lines(result):
+def plot_lines(result, limit, title):
     mm = result['mm_iters']
     ab = result['ab_iters']
     mm_average = sum(mm) / len(mm)
@@ -323,10 +323,10 @@ def plot_lines(result):
 
     plt.xlabel('Games')
     plt.ylabel('Number of Iterations')
-    plt.title('Tic Tac Toe - AlphaBeta vs MinMax - Execution iterations')
+    plt.title(title)
     x1, x2, y1, y2 = plt.axis()
 
-    plt.axis((x1, x2, 0, 5000))
+    plt.axis((x1, x2, 0, limit))
     plt.show()
 
 
@@ -334,8 +334,12 @@ if __name__ == "__main__":
     solver = MinMaxClass(['mm', 'ab'])
     # solver.display_tic_tac_toe(X=solver.human_player, O=solver.alpha_beta_player, width=3)
     # result = solver.display_tic_tac_toe(X=solver.minimax_player, O=solver.alpha_beta_player, width=3)
+    result = mm_vs_ab()
+    plot_wins(result, 'Tic Tac Toe - MinMax vs AlphaBeta')
+    plot_lines(result, 1800, 'Tic Tac Toe - AlphaBeta vs MinMax - Execution iterations')
+
     result = ab_vs_mm()
-    # result = mm_vs_ab()
-    plot_lines(result)
+    plot_wins(result, 'Tic Tac Toe - AlphaBeta vs MinMax')
+    plot_lines(result, 1800, 'Tic Tac Toe - AlphaBeta vs MinMax - Execution iterations')
 
     # raw_input()
