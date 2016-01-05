@@ -7,10 +7,10 @@ import numpy as np
 
 def generate_puzzle():
     return np.array([
+        [3, 1, 1, 4],
         [1, 1, 1, 1],
-        [1, 2, 1, 1],
-        [1, 3, 1, 1],
-        [1, 4, 1, 0]
+        [1, 1, 1, 2],
+        [1, 1, 1, 0]
     ])
 
 

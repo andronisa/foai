@@ -32,11 +32,7 @@ class Solver:
 
         if self.puzzle_state:
             moves = self.puzzle_state.moves
-            print("")
-            print(len(self.puzzle_state.directions))
-
             directions = self.puzzle_state.directions if len(self.puzzle_state.directions) < 50 else []
-            print(directions)
         else:
             moves = None
             directions = None
@@ -117,8 +113,8 @@ class Solver:
         self.visited = {}
 
         while len(self.queue) > 0:
-            # Stopping in 2000000 iterations in case of infinite loop
-            if self.total_iters > 2000000:
+            # Stopping in 1000000 iterations in case of infinite loop
+            if self.total_iters > 1000000:
                 return False
             self.total_iters += 1
             self.log_state()
