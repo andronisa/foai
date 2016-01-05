@@ -74,6 +74,7 @@ class Tic(object):
                 return 0
             elif node.O_won():
                 return 1
+
         for move in node.available_moves():
             node.make_move(move, player)
             val = self.alphabeta(node, get_enemy(player), alpha, beta)
@@ -93,31 +94,30 @@ class Tic(object):
         else:
             return beta
 
-    def minimax(self, node, player):
-        if node.complete():
-            if node.X_won():
-                return -1
-            elif node.tied():
-                return 0
-            elif node.O_won():
-                return 1
-
-        for move in node.available_moves():
-            node.make_move(move, player)
-
-            val = self.minimax(node, get_enemy(player))
-
-            node.make_move(move, None)
-
-            if player == 'O':
-                best = -2
-                if val > best:
-                    best = val
-            else:
-                best = 2
-                if val < best:
-                    best = val
-            return best
+    # def minimax(self, node, player, alpha, beta):
+    #     if node.complete():
+    #         if node.X_won():
+    #             return -1
+    #         elif node.tied():
+    #             return 0
+    #         elif node.O_won():
+    #             return 1
+    #
+    #     for move in node.available_moves():
+    #         node.make_move(move, player)
+    #
+    #         val = self.minimax(node, get_enemy(player), alpha, beta)
+    #
+    #         node.make_move(move, None)
+    #
+    #         if player == 'O':
+    #             best = alpha
+    #             if val > best:
+    #                 best = val
+    #         else:
+    #             if val < best:
+    #                 best = val
+    #         return best
 
 
 def determine(board, player):
@@ -125,9 +125,10 @@ def determine(board, player):
     choices = []
     if len(board.available_moves()) == 9:
         return 4
+
     for move in board.available_moves():
         board.make_move(move, player)
-        val = board.minimax(board, get_enemy(player))
+        val = board.alphabeta(board, get_enemy(player), -2, 2)
         board.make_move(move, None)
         print "move:", move + 1, "causes:", board.winners[val + 1]
         if val > a:
