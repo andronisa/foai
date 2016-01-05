@@ -1,10 +1,14 @@
 import random
-import os
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 class MinMaxClass:
-    def __init__(self):
-        self.counter = 0
+    def __init__(self, players=list()):
+        self.iterations = {
+            'mm': 0,
+            'ab': 0
+        }
 
     def TicTacToe(self, X, O, width=3):
         """Play a tic-tac-toe game between the two given functions. After each
@@ -37,7 +41,9 @@ class MinMaxClass:
         X, O - functions
         width - natural number"""
         for board in self.TicTacToe(X, O, width):
-            os.system('cls' if os.name == 'nt' else 'clear')  # clearscreen
+            # os.system('cls' if os.name == 'nt' else 'clear')  # clearscreen
+            print("")
+            print("")
             print self.str_board(board)
         winner = self.result(board)
         if winner in {'X', 'O'}:
@@ -46,6 +52,7 @@ class MinMaxClass:
             print 'Tie!'
         else:
             raise ValueError("The game didn't end")
+        return winner, self.iterations['mm'], self.iterations['ab']
 
     def result(self, board):
         """Return 'X' if X won in the given board, 'O' if O won, None if the game
@@ -93,19 +100,16 @@ class MinMaxClass:
         """Display the board to the user and ask him where does he want to put a
         sign. Return the square."""
         x_squares, o_squares, width = board
-        os.system('cls' if os.name == 'nt' else 'clear')  # clear screen
-
+        print("")
+        print("")
         print self.str_board(board)
 
         while True:
             try:
                 square = int(
-                        raw_input(
-                                'Total Iterations = ' + str(
-                                        self.counter) + ' - Where do you want to add ' + turn + '? '))
+                        raw_input('Where do you want to add ' + turn + '? '))
                 assert 0 < square <= width ** 2 and \
                        square not in x_squares | o_squares
-                self.counter = 0
                 return square  # this will happen if there were no exceptions
             except:
                 print ('You should write an integer between 1 and ' + str(width ** 2) +
@@ -121,10 +125,11 @@ class MinMaxClass:
 
         return random.choice(available_squares)
 
-    def minimax_player(self, board, turn):
+    def minimax_player(self, board, player):
         """Return a square where it's worthwhile to play according to the minimax
         algorithm."""
-        return self.minimax_best_square(board, turn)[0]
+        print("Total Iterations of minimax : " + str(self.iterations['mm']) + " - " + player)
+        return self.minimax_best_square(board, player)[0]
 
     def minimax_score_board(self, board, turn):
         """Return 1, 0 or -1 according to the minimax algorithm -- 1 if the player
@@ -134,29 +139,31 @@ class MinMaxClass:
 
         if self.result(board) == turn:
             return 1
-        if self.result(board) is None:
+        if self.result(board) is 'Tie':
             return 0
         if self.result(board) is not False:
             return -1
         return self.minimax_best_square(board, turn)[1]
 
-    def minimax_best_square(self, board, turn):
+    def minimax_best_square(self, board, player):
         """Choose a square where it's worthwhile to play in the given board and
         turn, and return a tuple of the square's number and it's score according
         to the minimax algorithm."""
         x_squares, o_squares, width = board
         max_score = -2
 
-        opponent = list({'X', 'O'} - set([turn]))[0]
+        opponent = list({'X', 'O'} - set([player]))[0]
         available_squares = list(set(range(1, width ** 2 + 1)) - (x_squares | o_squares))
         random.shuffle(available_squares)
 
         for square in available_squares:
-            self.counter += 1
+            if len(available_squares) == 9:
+                return square, 5
+            self.iterations['mm'] += 1
 
             # Iterate over the blank squares, to get the best square to play
-            new_board = (x_squares | set([square] if turn == 'X' else []),) + \
-                        (o_squares | set([square] if turn == 'O' else []), width)
+            new_board = (x_squares | set([square] if player == 'X' else []),) + \
+                        (o_squares | set([square] if player == 'O' else []), width)
             score = -self.minimax_score_board(new_board, opponent)
 
             if score == 1:
@@ -170,8 +177,8 @@ class MinMaxClass:
         """Return a square where it's worthwhile to play according to the minimax
         algorithm."""
 
-        print("Total Iterations : " + str(self.counter))
-        return self.minimax_best_square(board, player)[0]
+        print("Total Iterations of minimax : " + str(self.iterations['ab']) + " - " + player)
+        return self.alpha_beta_best_square(board, player, alpha, beta)[0]
 
     def alpha_beta_score_board(self, board, player, alpha, beta):
         """Return 1, 0 or -1 according to the minimax algorithm -- 1 if the player
@@ -185,7 +192,7 @@ class MinMaxClass:
             return 0
         if self.result(board) is not False:
             return -1
-        return self.alpha_beta_best_square(board, player)[1]
+        return self.alpha_beta_best_square(board, player, alpha, beta)[1]
 
     def alpha_beta_best_square(self, board, player, alpha, beta):
         """Choose a square where it's worthwhile to play in the given board and
@@ -198,7 +205,7 @@ class MinMaxClass:
         random.shuffle(available_squares)
 
         for square in available_squares:
-            self.counter += 1
+            self.iterations['ab'] += 1
 
             # Iterate over the blank squares, to get the best square to play
             new_board = (x_squares | set([square] if player == 'X' else []),) + \
@@ -222,8 +229,86 @@ class MinMaxClass:
             return square, beta
 
 
-if __name__ == "__main__":
-    solver = MinMaxClass()
+def mm_vs_ab():
+    result = {
+        'mm_iters': [],
+        'ab_iters': [],
+        'mm_wins': 0,
+        'ab_wins': 0,
+        'ties': 0,
+    }
 
-    solver.display_tic_tac_toe(X=solver.minimax_player, O=solver.random_player, width=3)
-    raw_input()
+    for i in range(100):
+        solver = MinMaxClass(['mm', 'ab'])
+        minmax_against_alphabeta = solver.display_tic_tac_toe(X=solver.minimax_player, O=solver.alpha_beta_player,
+                                                              width=3)
+        if minmax_against_alphabeta[0] == 'X':
+            result['mm_wins'] += 1
+        elif minmax_against_alphabeta[0] == 'O':
+            result['ab_wins'] += 1
+        else:
+            result['ties'] += 1
+        result['mm_iters'].append(minmax_against_alphabeta[1])
+        result['ab_iters'].append(minmax_against_alphabeta[2])
+    return result
+
+
+def ab_vs_mm():
+    result = {
+        'mm_iters': [],
+        'ab_iters': [],
+        'mm_wins': 0,
+        'ab_wins': 0,
+        'ties': 0,
+    }
+
+    for i in range(100):
+        solver = MinMaxClass(['mm', 'ab'])
+        minmax_against_alphabeta = solver.display_tic_tac_toe(X=solver.alpha_beta_player, O=solver.minimax_player,
+                                                              width=3)
+        if minmax_against_alphabeta[0] == 'O':
+            result['mm_wins'] += 1
+        elif minmax_against_alphabeta[0] == 'X':
+            result['ab_wins'] += 1
+        else:
+            result['ties'] += 1
+        result['mm_iters'].append(minmax_against_alphabeta[1])
+        result['ab_iters'].append(minmax_against_alphabeta[2])
+    return result
+
+
+if __name__ == "__main__":
+    solver = MinMaxClass(['mm', 'ab'])
+    # solver.display_tic_tac_toe(X=solver.human_player, O=solver.alpha_beta_player, width=3)
+    # result = solver.display_tic_tac_toe(X=solver.minimax_player, O=solver.alpha_beta_player, width=3)
+    result = mm_vs_ab()
+    OX = [
+        'MinMax',
+        'Alpha Beta',
+        'Ties'
+    ]
+
+    mm = result['mm_wins']
+    ab = result['ab_wins']
+    ties = result['ties']
+
+    OY = [mm, ab, ties]
+
+    fig = plt.figure()
+
+    width = .20
+    ind = np.arange(len(OY))
+    barlist = plt.bar(ind, OY, align='center')
+    plt.xticks(ind + width / 2, OX)
+
+    barlist[0].set_color('r')
+    barlist[1].set_color('b')
+    barlist[2].set_color('g')
+    plt.legend((barlist[0], barlist[1], barlist[2]),
+               ('MinMax Wins: ' + str(mm), 'AlphaBeta Wins: ' + str(ab), 'Ties: ' + str(ties)))
+
+    plt.xlabel('Winner')
+    plt.ylabel('Wins Count')
+    plt.title('Tic Tac Toe - MinMax vs Alpha-Beta')
+    plt.show()
+    # raw_input()

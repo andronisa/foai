@@ -16,6 +16,7 @@ class Tic(object):
             self.squares = [None for i in range(9)]
         else:
             self.squares = squares
+        self.counter = 0
 
     def show(self):
         for element in [self.squares[i:i + 3] for i in range(0, len(self.squares), 3)]:
@@ -76,9 +77,12 @@ class Tic(object):
                 return 1
 
         for move in node.available_moves():
+            self.counter += 1
             node.make_move(move, player)
             val = self.alphabeta(node, get_enemy(player), alpha, beta)
             node.make_move(move, None)
+            print(player)
+            exit()
             if player == 'O':
                 if val > alpha:
                     alpha = val
@@ -119,24 +123,24 @@ class Tic(object):
     #                 best = val
     #         return best
 
+    def determine(self, board, player):
+        a = -2
+        choices = []
+        if len(board.available_moves()) == 9:
+            return 4
 
-def determine(board, player):
-    a = -2
-    choices = []
-    if len(board.available_moves()) == 9:
-        return 4
-
-    for move in board.available_moves():
-        board.make_move(move, player)
-        val = board.alphabeta(board, get_enemy(player), -2, 2)
-        board.make_move(move, None)
-        print "move:", move + 1, "causes:", board.winners[val + 1]
-        if val > a:
-            a = val
-            choices = [move]
-        elif val == a:
-            choices.append(move)
-    return random.choice(choices)
+        for move in board.available_moves():
+            board.make_move(move, player)
+            val = board.alphabeta(board, get_enemy(player), -2, 2)
+            board.make_move(move, None)
+            print "move:", move + 1, "causes:", board.winners[val + 1]
+            if val > a:
+                a = val
+                choices = [move]
+            elif val == a:
+                choices.append(move)
+        print(self.counter)
+        return random.choice(choices)
 
 
 def get_enemy(player):
@@ -160,7 +164,7 @@ if __name__ == "__main__":
         if board.complete():
             break
         player = get_enemy(player)
-        computer_move = determine(board, player)
+        computer_move = board.determine(board, player)
         board.make_move(computer_move, player)
         board.show()
     print "winner is", board.winner()
